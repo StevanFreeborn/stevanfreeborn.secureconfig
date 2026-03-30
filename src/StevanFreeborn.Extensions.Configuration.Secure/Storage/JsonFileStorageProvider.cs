@@ -6,7 +6,7 @@ namespace StevanFreeborn.Extensions.Configuration.Secure.Storage;
 /// Provides a mechanism to store and retrieve secure configuration data in a JSON file.
 /// </summary>
 /// <param name="options">The <see cref="JsonStorageOptions"/> configuring the storage provider, including file paths.</param>
-public sealed class JsonFileStorageProvider(JsonStorageOptions options)
+public sealed class JsonFileStorageProvider(JsonStorageOptions options) : ISecureStorageProvider
 {
   private static readonly SemaphoreSlim FileLock = new(1, 1);
   private static readonly JsonSerializerOptions JsonOptions = new()
@@ -39,7 +39,7 @@ public sealed class JsonFileStorageProvider(JsonStorageOptions options)
   /// </summary>
   /// <param name="ct">A cancellation token that can be used to cancel the read operation.</param>
   /// <returns>A task that represents the asynchronous read operation. The task result contains a dictionary of all configuration keys and their values.</returns>
-  public Task<Dictionary<string, string>> ReadAllAsync(CancellationToken ct = default)
+  public Task<IDictionary<string, string>> ReadAllAsync(CancellationToken ct = default)
   {
     return AcquireLockAndLoadAsync(ct);
   }
@@ -95,7 +95,7 @@ public sealed class JsonFileStorageProvider(JsonStorageOptions options)
   /// </summary>
   /// <param name="ct">A cancellation token to observe while waiting for the lock or during the load operation.</param>
   /// <returns>A dictionary containing the loaded configuration data.</returns>
-  private async Task<Dictionary<string, string>> AcquireLockAndLoadAsync(CancellationToken ct)
+  private async Task<IDictionary<string, string>> AcquireLockAndLoadAsync(CancellationToken ct)
   {
     await FileLock.WaitAsync(ct).ConfigureAwait(false);
 
