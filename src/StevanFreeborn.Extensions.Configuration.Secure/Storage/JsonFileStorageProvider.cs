@@ -30,19 +30,17 @@ public sealed class JsonFileStorageProvider(JsonStorageOptions options)
 
   public async Task WriteAsync(string key, string encryptedData, CancellationToken ct = default)
   {
-    Directory.CreateDirectory(_options.DirectoryPath);
-
     var data = await LoadAsync(ct);
     data[key] = encryptedData;
+    await SaveAsync(data, ct);
+  }
 
-    using var stream = new FileStream(
-      _options.FullPath,
-      FileMode.Create,
-      FileAccess.Write,
-      FileShare.None
-    );
-
-    await JsonSerializer.SerializeAsync(stream, data, JsonOptions, ct);
+  public async Task<bool> DeleteAsync(string key, CancellationToken ct = default)
+  {
+    var data = await LoadAsync(ct);
+    var result = data.Remove(key);
+    await SaveAsync(data, ct);
+    return result;
   }
 
   private async Task<Dictionary<string, string>> LoadAsync(CancellationToken ct)
@@ -62,5 +60,19 @@ public sealed class JsonFileStorageProvider(JsonStorageOptions options)
     var data = await JsonSerializer.DeserializeAsync<Dictionary<string, string>>(stream, cancellationToken: ct);
 
     return data ?? [];
+  }
+
+  private async Task SaveAsync(Dictionary<string, string> data, CancellationToken ct)
+  {
+    Directory.CreateDirectory(_options.DirectoryPath);
+
+    using var stream = new FileStream(
+      _options.FullPath,
+      FileMode.Create,
+      FileAccess.Write,
+      FileShare.None
+    );
+
+    await JsonSerializer.SerializeAsync(stream, data, JsonOptions, ct);
   }
 }

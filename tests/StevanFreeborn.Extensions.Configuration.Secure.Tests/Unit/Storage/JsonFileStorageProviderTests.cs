@@ -58,6 +58,18 @@ public class JsonFileStorageProviderTests : IDisposable
     });
   }
 
+  [Fact]
+  public async Task DeleteAsync_WhenCalled_ItShouldRemoveKey()
+  {
+    await _sut.WriteAsync("KeyToDelete", "SomeValue");
+
+    var deleteResult = await _sut.DeleteAsync("KeyToDelete");
+    var readResult = await _sut.ReadAsync("KeyToDelete");
+
+    deleteResult.Should().BeTrue();
+    readResult.Should().BeEmpty();
+  }
+
   public void Dispose()
   {
     if (Directory.Exists(_tmpDirectory))
