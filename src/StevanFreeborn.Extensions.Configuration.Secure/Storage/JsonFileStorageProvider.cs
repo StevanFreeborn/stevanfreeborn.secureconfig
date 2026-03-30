@@ -4,6 +4,7 @@ namespace StevanFreeborn.Extensions.Configuration.Secure.Storage;
 
 public sealed class JsonFileStorageProvider(JsonStorageOptions options)
 {
+  private static readonly SemaphoreSlim FileLock = new(1, 1);
   private static readonly JsonSerializerOptions JsonOptions = new()
   {
     WriteIndented = true,
@@ -13,7 +14,7 @@ public sealed class JsonFileStorageProvider(JsonStorageOptions options)
 
   public async Task<string> ReadAsync(string key, CancellationToken ct = default)
   {
-    var data = await LoadAsync(ct);
+    var data = await LoadWithLockAsync(ct);
 
     if (data is not null && data.TryGetValue(key, out var v))
     {
@@ -25,22 +26,54 @@ public sealed class JsonFileStorageProvider(JsonStorageOptions options)
 
   public Task<Dictionary<string, string>> ReadAllAsync(CancellationToken ct = default)
   {
-    return LoadAsync(ct);
+    return LoadWithLockAsync(ct);
   }
 
   public async Task WriteAsync(string key, string encryptedData, CancellationToken ct = default)
   {
-    var data = await LoadAsync(ct);
-    data[key] = encryptedData;
-    await SaveAsync(data, ct);
+    await FileLock.WaitAsync(ct);
+
+    try
+    {
+      var data = await LoadAsync(ct);
+      data[key] = encryptedData;
+      await SaveAsync(data, ct);
+    }
+    finally
+    {
+      FileLock.Release();
+    }
   }
 
   public async Task<bool> DeleteAsync(string key, CancellationToken ct = default)
   {
-    var data = await LoadAsync(ct);
-    var result = data.Remove(key);
-    await SaveAsync(data, ct);
-    return result;
+    await FileLock.WaitAsync(ct);
+
+    try
+    {
+      var data = await LoadAsync(ct);
+      var result = data.Remove(key);
+      await SaveAsync(data, ct);
+      return result;
+    }
+    finally
+    {
+      FileLock.Release();
+    }
+  }
+
+  private async Task<Dictionary<string, string>> LoadWithLockAsync(CancellationToken ct)
+  {
+    await FileLock.WaitAsync(ct);
+
+    try
+    {
+      return await LoadAsync(ct);
+    }
+    finally
+    {
+      FileLock.Release();
+    }
   }
 
   private async Task<Dictionary<string, string>> LoadAsync(CancellationToken ct)

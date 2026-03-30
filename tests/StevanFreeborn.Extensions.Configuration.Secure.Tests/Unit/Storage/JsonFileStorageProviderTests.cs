@@ -79,4 +79,23 @@ public class JsonFileStorageProviderTests : IDisposable
 
     GC.SuppressFinalize(this);
   }
+
+  [Fact]
+  public async Task WriteAsync_WhenCalledConcurrently_ItShouldNotThrowFileInUseException()
+  {
+    const int numberOfWrites = 50;
+    var tasks = new List<Task>();
+
+    foreach (var index in Enumerable.Range(0, numberOfWrites))
+    {
+      tasks.Add(Task.Run(() => _sut.WriteAsync($"Key{index}", $"Val{index}")));
+    }
+
+    var act = async () => await Task.WhenAll(tasks);
+
+    await act.Should().NotThrowAsync();
+
+    var allData = await _sut.ReadAllAsync();
+    allData.Should().HaveCount(numberOfWrites);
+  }
 }
