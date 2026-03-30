@@ -35,4 +35,3 @@ await secureConfig.SetAsync(
   nameof(ApiOptions),
   new ApiOptions { ApiKey = "apiKey" }
 );
-
