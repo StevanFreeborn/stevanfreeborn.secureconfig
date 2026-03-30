@@ -13,19 +13,7 @@ public sealed class JsonFileStorageProvider(JsonStorageOptions options)
 
   public async Task<string> ReadAsync(string key, CancellationToken ct = default)
   {
-    if (File.Exists(_options.FullPath) is false)
-    {
-      return string.Empty;
-    }
-
-    using var stream = new FileStream(_options.FullPath, FileMode.Open, FileAccess.Read);
-
-    if (stream.Length is 0)
-    {
-      return string.Empty;
-    }
-
-    var data = await JsonSerializer.DeserializeAsync<Dictionary<string, string>>(stream, cancellationToken: ct);
+    var data = await LoadAsync(ct);
 
     if (data is not null && data.TryGetValue(key, out var v))
     {
@@ -35,14 +23,17 @@ public sealed class JsonFileStorageProvider(JsonStorageOptions options)
     return string.Empty;
   }
 
+  public Task<Dictionary<string, string>> ReadAllAsync(CancellationToken ct = default)
+  {
+    return LoadAsync(ct);
+  }
+
   public async Task WriteAsync(string key, string encryptedData, CancellationToken ct = default)
   {
     Directory.CreateDirectory(_options.DirectoryPath);
 
-    var data = new Dictionary<string, string>
-    {
-      [key] = encryptedData
-    };
+    var data = await LoadAsync(ct);
+    data[key] = encryptedData;
 
     using var stream = new FileStream(
       _options.FullPath,
@@ -52,5 +43,24 @@ public sealed class JsonFileStorageProvider(JsonStorageOptions options)
     );
 
     await JsonSerializer.SerializeAsync(stream, data, JsonOptions, ct);
+  }
+
+  private async Task<Dictionary<string, string>> LoadAsync(CancellationToken ct)
+  {
+    if (File.Exists(_options.FullPath) is false)
+    {
+      return [];
+    }
+
+    using var stream = new FileStream(_options.FullPath, FileMode.Open, FileAccess.Read);
+
+    if (stream.Length is 0)
+    {
+      return [];
+    }
+
+    var data = await JsonSerializer.DeserializeAsync<Dictionary<string, string>>(stream, cancellationToken: ct);
+
+    return data ?? [];
   }
 }

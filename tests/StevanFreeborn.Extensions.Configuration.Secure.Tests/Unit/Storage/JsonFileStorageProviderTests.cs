@@ -2,7 +2,7 @@ using StevanFreeborn.Extensions.Configuration.Secure.Storage;
 
 namespace StevanFreeborn.Extensions.Configuration.Secure.Tests.Unit.Storage;
 
-public class JsonFileStorageProviderTests
+public class JsonFileStorageProviderTests : IDisposable
 {
   private readonly string _tmpDirectory;
   private readonly JsonStorageOptions _options;
@@ -15,7 +15,8 @@ public class JsonFileStorageProviderTests
 
     _options = new()
     {
-      FileName = "testsettings.json"
+      FileName = "testsettings.json",
+      DirectoryPath = _tmpDirectory,
     };
 
     _sut = new(_options);
@@ -32,7 +33,7 @@ public class JsonFileStorageProviderTests
   [Fact]
   public async Task WriteAsync_And_ReadAsync_WhenCalled_ItShouldBeAbleToPersistAndRetrieveValues()
   {
-    var configKey = "Key";
+    var configKey = "KeyA";
     var configValue = "Value";
 
     await _sut.WriteAsync(configKey, configValue);
@@ -40,5 +41,30 @@ public class JsonFileStorageProviderTests
 
     result.Should().Be(configValue);
     File.Exists(_options.FullPath).Should().BeTrue();
+  }
+
+  [Fact]
+  public async Task ReadAllAsync_WhenCalled_ItShouldReturnAllStoredKeys()
+  {
+    await _sut.WriteAsync("Key1", "Val1");
+    await _sut.WriteAsync("Key2", "Val2");
+
+    var allData = await _sut.ReadAllAsync();
+
+    allData.Should().BeEquivalentTo(new Dictionary<string, string>()
+    {
+      ["Key1"] = "Val1",
+      ["Key2"] = "Val2",
+    });
+  }
+
+  public void Dispose()
+  {
+    if (Directory.Exists(_tmpDirectory))
+    {
+      Directory.Delete(_tmpDirectory, true);
+    }
+
+    GC.SuppressFinalize(this);
   }
 }
