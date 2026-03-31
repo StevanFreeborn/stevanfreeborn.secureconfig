@@ -5,11 +5,6 @@ using Microsoft.Extensions.Logging;
 
 namespace StevanFreeborn.Extensions.Configuration.Secure.Cryptography;
 
-internal interface IMachineIdKeyGenerator
-{
-  string GetId();
-}
-
 internal sealed class MachineIdKeyGenerator : IMachineIdKeyGenerator
 {
   private const string IOPlatformUUID = nameof(IOPlatformUUID);
