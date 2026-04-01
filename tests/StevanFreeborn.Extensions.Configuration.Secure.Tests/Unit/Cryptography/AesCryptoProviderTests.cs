@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+
 using Moq;
 
 using StevanFreeborn.Extensions.Configuration.Secure.Cryptography;
@@ -11,6 +13,10 @@ public class AesCryptoProviderTests
 
   public AesCryptoProviderTests()
   {
+    var key = new byte[32];
+    RandomNumberGenerator.Fill(key);
+    _mockKeyProvider.Setup(static m => m.GetKey()).Returns(key);
+
     _sut = new(_mockKeyProvider.Object);
   }
 
@@ -24,5 +30,30 @@ public class AesCryptoProviderTests
 
     encryptedText.Should().NotBe(originalText);
     decryptedText.Should().Be(originalText);
+  }
+
+  [Fact]
+  public void Encrypt_WhenCalledWithSameInputTwitch_ItShouldProduceDifferentCipherText()
+  {
+    var plainText = "identicalInput";
+
+    var cipherTextOne = _sut.Encrypt(plainText);
+    var cipherTextTwo = _sut.Encrypt(plainText);
+
+    cipherTextOne.Should().NotBe(cipherTextTwo);
+  }
+
+  [Fact]
+  public void Decrypt_WhenCalledWithTamperedData_ItShouldThrowCrytographicException()
+  {
+    var cipherText = _sut.Encrypt("some data");
+    var rawBytes = Convert.FromBase64String(cipherText);
+    rawBytes[^1] = (byte)(rawBytes[^1] ^ 0xFF);
+
+    var tamperedText = Convert.ToBase64String(rawBytes);
+
+    var act = () => _sut.Decrypt(tamperedText);
+
+    act.Should().Throw<CryptographicException>();
   }
 }
