@@ -5,13 +5,6 @@ using StevanFreeborn.Extensions.Configuration.Secure.Storage;
 
 namespace StevanFreeborn.Extensions.Configuration.Secure.Configuration;
 
-internal interface ISecureConfig
-{
-  Task<bool> DeleteAsync(string key, CancellationToken ct = default);
-  Task<T?> GetAsync<T>(string key, CancellationToken ct = default);
-  Task SetAsync<T>(string key, T value, CancellationToken ct = default);
-}
-
 internal sealed class SecureConfig(
   ISecureStorageProvider storageProvider,
   ICryptoProvider cryptoProvider
