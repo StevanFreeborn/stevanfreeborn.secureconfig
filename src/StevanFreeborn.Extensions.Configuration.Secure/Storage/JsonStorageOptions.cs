@@ -8,7 +8,7 @@ public sealed class JsonStorageOptions
   /// <summary>
   /// Gets or sets the name of the JSON file used for storage.
   /// </summary>
-  public string FileName { get; set; } = string.Empty;
+  public string FileName { get; set; } = "secure_config.json";
 
   /// <summary>
   /// Gets or sets the directory path where the JSON file is located. Defaults to the base directory of the application.
