@@ -108,7 +108,7 @@ public class SecureConfigExtensionsTests
   public void AddSecureConfig_WhenProperlyConfigured_ItShouldBuildConfigurationProvider()
   {
     var encryptedValue = "encrypted_value";
-    var decryptedJson = @"{ ""Setting"": ""Value"", ""Number"": 42 }";
+    var decryptedJson = /*lang=json,strict*/ @"{ ""Setting"": ""Value"", ""Number"": 42 }";
 
     _mockStorageProvider
       .Setup(s => s.ReadAllAsync(It.IsAny<CancellationToken>()))
@@ -146,7 +146,7 @@ public class SecureConfigExtensionsTests
       var keyProvider = new StaticKeyProvider(Convert.ToBase64String(keyBytes));
       var cryptoProvider = new AesCryptoProvider(keyProvider);
 
-      var originalData = @"{ ""AppName"": ""TestApp"", ""Version"": ""1.0.0"" }";
+      var originalData = /*lang=json,strict*/ @"{ ""AppName"": ""TestApp"", ""Version"": ""1.0.0"" }";
       var encryptedData = cryptoProvider.Encrypt(originalData);
 
       File.WriteAllText(filePath, $"{{\"Settings\":\"{encryptedData}\"}}");
@@ -169,8 +169,15 @@ public class SecureConfigExtensionsTests
     }
     finally
     {
-      if (File.Exists(filePath)) File.Delete(filePath);
-      if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
+      if (File.Exists(filePath))
+      {
+        File.Delete(filePath);
+      }
+
+      if (Directory.Exists(tempDir))
+      {
+        Directory.Delete(tempDir, true);
+      }
     }
   }
 
@@ -526,15 +533,22 @@ public class SecureConfigExtensionsTests
       var retrievedObject = await secureConfig.GetAsync<TestConfig>("TestKey");
 
       retrievedObject.Should().NotBeNull();
-      retrievedObject!.Name.Should().Be("TestName");
+      retrievedObject.Name.Should().Be("TestName");
       retrievedObject.Value.Should().Be(123);
 
       File.Exists(filePath).Should().BeTrue();
     }
     finally
     {
-      if (File.Exists(filePath)) File.Delete(filePath);
-      if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
+      if (File.Exists(filePath))
+      {
+        File.Delete(filePath);
+      }
+
+      if (Directory.Exists(tempDir))
+      {
+        Directory.Delete(tempDir, true);
+      }
     }
   }
 
@@ -570,12 +584,15 @@ public class SecureConfigExtensionsTests
       var retrievedObject = await secureConfig.GetAsync<TestConfig>("MachineTest");
 
       retrievedObject.Should().NotBeNull();
-      retrievedObject!.Name.Should().Be("MachineIdTest");
+      retrievedObject.Name.Should().Be("MachineIdTest");
       retrievedObject.Value.Should().Be(456);
     }
     finally
     {
-      if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
+      if (Directory.Exists(tempDir))
+      {
+        Directory.Delete(tempDir, true);
+      }
     }
   }
 
@@ -595,14 +612,14 @@ public class SecureConfigExtensionsTests
     var keyedService = serviceProvider.GetKeyedService<JsonSerializerOptions>("SecureConfigJsonSerializerOptions");
 
     keyedService.Should().NotBeNull();
-    keyedService!.PropertyNameCaseInsensitive.Should().BeTrue();
+    keyedService.PropertyNameCaseInsensitive.Should().BeTrue();
   }
 
   [Fact]
   public void AddSecureConfig_CombinedWithOtherProviders_ItShouldMergeConfiguration()
   {
     var encryptedValue = "encrypted_value";
-    var decryptedJson = @"{ ""SecureSetting"": ""SecureValue"" }";
+    var decryptedJson = /*lang=json,strict*/ @"{ ""SecureSetting"": ""SecureValue"" }";
 
     _mockStorageProvider
       .Setup(s => s.ReadAllAsync(It.IsAny<CancellationToken>()))
@@ -635,7 +652,7 @@ public class SecureConfigExtensionsTests
   public void AddSecureConfig_WithNestedConfiguration_ItShouldFlattenCorrectly()
   {
     var encryptedValue = "encrypted_nested";
-    var decryptedJson = @"{
+    var decryptedJson = /*lang=json,strict*/ @"{
       ""Level1"": {
         ""Level2"": {
           ""Setting"": ""NestedValue""
@@ -667,7 +684,7 @@ public class SecureConfigExtensionsTests
   public void AddSecureConfig_WithArrays_ItShouldIndexCorrectly()
   {
     var encryptedValue = "encrypted_array";
-    var decryptedJson = @"{ ""Items"": [""First"", ""Second"", ""Third""] }";
+    var decryptedJson = /*lang=json,strict*/ @"{ ""Items"": [""First"", ""Second"", ""Third""] }";
 
     _mockStorageProvider
       .Setup(s => s.ReadAllAsync(It.IsAny<CancellationToken>()))
@@ -696,8 +713,8 @@ public class SecureConfigExtensionsTests
   {
     var encrypted1 = "encrypted1";
     var encrypted2 = "encrypted2";
-    var decrypted1 = @"{ ""Setting1"": ""Value1"" }";
-    var decrypted2 = @"{ ""Setting2"": ""Value2"" }";
+    var decrypted1 = /*lang=json,strict*/ @"{ ""Setting1"": ""Value1"" }";
+    var decrypted2 = /*lang=json,strict*/ @"{ ""Setting2"": ""Value2"" }";
 
     _mockStorageProvider
       .Setup(s => s.ReadAllAsync(It.IsAny<CancellationToken>()))
