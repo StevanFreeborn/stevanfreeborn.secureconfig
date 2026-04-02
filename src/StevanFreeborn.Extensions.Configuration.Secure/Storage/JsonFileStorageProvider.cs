@@ -9,10 +9,6 @@ namespace StevanFreeborn.Extensions.Configuration.Secure.Storage;
 public sealed class JsonFileStorageProvider(JsonStorageOptions options) : ISecureStorageProvider
 {
   private static readonly SemaphoreSlim FileLock = new(1, 1);
-  private static readonly JsonSerializerOptions JsonOptions = new()
-  {
-    WriteIndented = true,
-  };
   private readonly JsonStorageOptions _options = options
     ?? throw new ArgumentNullException(nameof(options));
 
@@ -128,7 +124,7 @@ public sealed class JsonFileStorageProvider(JsonStorageOptions options) : ISecur
       return [];
     }
 
-    var data = await JsonSerializer.DeserializeAsync<Dictionary<string, string>>(stream, cancellationToken: ct)
+    var data = await JsonSerializer.DeserializeAsync(stream, SecureConfigJsonContext.Default.DictionaryStringString, ct)
       .ConfigureAwait(false);
 
     return data ?? [];
@@ -151,7 +147,7 @@ public sealed class JsonFileStorageProvider(JsonStorageOptions options) : ISecur
       FileShare.None
     );
 
-    await JsonSerializer.SerializeAsync(stream, data, JsonOptions, ct)
+    await JsonSerializer.SerializeAsync(stream, data, SecureConfigJsonContext.Default.DictionaryStringString, ct)
       .ConfigureAwait(false);
   }
 }
