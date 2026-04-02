@@ -65,7 +65,7 @@ public class SecureConfigProviderTests
       { "BadKey", "encrypted_bad" },
     };
 
-    _mockLogger.Setup(m => m.IsEnabled(LogLevel.Error)).Returns(true);
+    _mockLogger.Setup(m => m.IsEnabled(LogLevel.Warning)).Returns(true);
     _mockStorage.Setup(m => m.ReadAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(storedData);
     _mockCrypto.Setup(m => m.Decrypt("encrypted_valid")).Returns(@"{ ""Name"": ""test"" }");
     _mockCrypto.Setup(m => m.Decrypt("encrypted_bad")).Throws(new InvalidOperationException("Decryption failed"));
@@ -76,7 +76,7 @@ public class SecureConfigProviderTests
     val.Should().Be("test");
 
     _mockLogger.Verify(logger => logger.Log(
-        LogLevel.Error,
+        LogLevel.Warning,
         It.Is<EventId>(id => id.Id == 3),
         It.Is<It.IsAnyType>((state, type) => state.ToString()!.Contains("Failed to decrypt value for key")),
         It.IsAny<Exception>(),
@@ -495,14 +495,14 @@ public class SecureConfigProviderTests
   [Fact]
   public void Load_WhenCalledWithInvalidJson_ItShouldLogErrorAndContinue()
   {
-    _mockLogger.Setup(m => m.IsEnabled(LogLevel.Error)).Returns(true);
+    _mockLogger.Setup(m => m.IsEnabled(LogLevel.Warning)).Returns(true);
     _mockStorage.Setup(m => m.ReadAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new Dictionary<string, string> { { "Bad", "enc" } });
     _mockCrypto.Setup(m => m.Decrypt("enc")).Returns("not valid json{{{");
 
     _sut.Load();
 
     _mockLogger.Verify(x => x.Log(
-        LogLevel.Error,
+        LogLevel.Warning,
         It.IsAny<EventId>(),
         It.Is<It.IsAnyType>((v, _) => v.ToString()!.Contains("Bad")),
         It.IsAny<Exception>(),

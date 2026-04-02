@@ -1,10 +1,12 @@
+using System.Runtime.CompilerServices;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
 using Moq;
 
 using StevanFreeborn.Extensions.Configuration.Secure.Configuration;
 using StevanFreeborn.Extensions.Configuration.Secure.Cryptography;
 using StevanFreeborn.Extensions.Configuration.Secure.Storage;
-
-using System.Text.Json;
 
 namespace StevanFreeborn.Extensions.Configuration.Secure.Tests.Unit.Configuration;
 
@@ -12,17 +14,18 @@ public class SecureConfigTests
 {
   private readonly Mock<ICryptoProvider> _mockCryptoProvider = new();
   private readonly Mock<ISecureStorageProvider> _mockStorageProvider = new();
+  private readonly JsonSerializerOptions _jsonSerializerOptions = new();
   private readonly SecureConfig _sut;
 
   public SecureConfigTests()
   {
-    _sut = new(_mockStorageProvider.Object, _mockCryptoProvider.Object);
+    _sut = new(_mockStorageProvider.Object, _mockCryptoProvider.Object, _jsonSerializerOptions);
   }
 
   [Fact]
   public void Constructor_WhenCalledWithNullStorageProvider_ItShouldThrowArgumentNullException()
   {
-    var act = () => new SecureConfig(null!, _mockCryptoProvider.Object);
+    var act = () => new SecureConfig(null!, _mockCryptoProvider.Object, _jsonSerializerOptions);
 
     act.Should().Throw<ArgumentNullException>();
   }
@@ -30,7 +33,15 @@ public class SecureConfigTests
   [Fact]
   public void Constructor_WhenCalledWithNullCryptoProvider_ItShouldThrowArgumentNullException()
   {
-    var act = () => new SecureConfig(_mockStorageProvider.Object, null!);
+    var act = () => new SecureConfig(_mockStorageProvider.Object, null!, _jsonSerializerOptions);
+
+    act.Should().Throw<ArgumentNullException>();
+  }
+
+  [Fact]
+  public void Constructor_WhenCalledWithNullJsonOptions_ItShouldThrowArgumentNullException()
+  {
+    var act = () => new SecureConfig(_mockStorageProvider.Object, _mockCryptoProvider.Object, null!);
 
     act.Should().Throw<ArgumentNullException>();
   }
@@ -38,22 +49,22 @@ public class SecureConfigTests
   [Fact]
   public async Task SetAsync_WhenCalledWithNullKey_ItShouldThrowArgumentNullException()
   {
-    var act = async () => await _sut.SetAsync(null!, string.Empty);
+    var act = async () => await _sut.SetAsync(null!, string.Empty, SecureConfigTestsJsonContext.Default.String);
 
-    await act.Should().ThrowAsync<ArgumentNullException>();
+    await act.Should().ThrowAsync<ArgumentException>();
   }
 
 
   [Fact]
   public async Task SetAsync_WhenCalledWithNullValue_ItShouldThrowArgumentNullException()
   {
-    var act = async () => await _sut.SetAsync<string>("Key", null!);
+    var act = async () => await _sut.SetAsync("Key", null!, SecureConfigTestsJsonContext.Default.String);
 
     await act.Should().ThrowAsync<ArgumentNullException>();
   }
 
   [Fact]
-  public async Task SetAsync_WhenCalled_ItShouldSerializeGivenValueAndEncryptIt()
+  public async Task SetAsync_WhenCalledWithoutJsonContextSet_ItShouldSerializeGivenValueAndEncryptIt()
   {
     var key = "Database";
     var config = new DummyConfig("localhost", 9999);
@@ -62,17 +73,81 @@ public class SecureConfigTests
 
     _mockCryptoProvider.Setup(m => m.Encrypt(json)).Returns(encryptedString);
 
+    var act = async () => await _sut.SetAsync(key, config);
+
+    await act.Should().ThrowAsync<InvalidOperationException>();
+  }
+
+  [Fact]
+  public async Task SetAsync_WhenCalledWithJsonContextSet_ItShouldSerializeGivenValueAndEncryptIt()
+  {
+    var key = "Database";
+    var config = new DummyConfig("localhost", 9999);
+    var encryptedString = "encryptedString";
+    var json = JsonSerializer.Serialize(config);
+
+    _jsonSerializerOptions.TypeInfoResolverChain.Insert(0, SecureConfigTestsJsonContext.Default);
+    _mockCryptoProvider.Setup(m => m.Encrypt(json)).Returns(encryptedString);
+
     await _sut.SetAsync(key, config);
 
-    _mockStorageProvider.Verify(m => m.WriteAsync(key, encryptedString), Times.Once());
+    _mockStorageProvider.Verify(m => m.WriteAsync(key, encryptedString, It.IsAny<CancellationToken>()), Times.Once());
+  }
+
+  [Fact]
+  public async Task SetAsync_WhenCalledWithTypeInfo_ItShouldSerializeGivenValueAndEncryptIt()
+  {
+    var key = "Database";
+    var config = new DummyConfig("localhost", 9999);
+    var encryptedString = "encryptedString";
+    var json = JsonSerializer.Serialize(config);
+
+    _mockCryptoProvider.Setup(m => m.Encrypt(json)).Returns(encryptedString);
+
+    await _sut.SetAsync(key, config, SecureConfigTestsJsonContext.Default.DummyConfig);
+
+    _mockStorageProvider.Verify(m => m.WriteAsync(key, encryptedString, It.IsAny<CancellationToken>()), Times.Once());
   }
 
   [Fact]
   public async Task GetAsync_WhenCalledWithNullKey_ItShouldThrowArgumentNullException()
   {
-    var act = async () => await _sut.GetAsync<DummyConfig>(null!);
+    var act = async () => await _sut.GetAsync(null!, SecureConfigTestsJsonContext.Default.DummyConfig);
 
-    await act.Should().ThrowAsync<ArgumentNullException>();
+    await act.Should().ThrowAsync<ArgumentException>();
+  }
+
+  [Fact]
+  public async Task GetAsync_WhenKeyExistsAndJsonContextNotSet_ItShouldReadDecryptAndDeserializeTheValue()
+  {
+    var key = "Database";
+    var expectedConfig = new DummyConfig("localhost", 9999);
+    var encryptedString = "encryptedString";
+    var json = JsonSerializer.Serialize(expectedConfig);
+
+    _mockStorageProvider.Setup(m => m.ReadAsync(key, It.IsAny<CancellationToken>())).ReturnsAsync(encryptedString);
+    _mockCryptoProvider.Setup(m => m.Decrypt(encryptedString)).Returns(json);
+
+    var act = async () => await _sut.GetAsync<DummyConfig>(key);
+
+    await act.Should().ThrowAsync<InvalidOperationException>();
+  }
+
+  [Fact]
+  public async Task GetAsync_WhenKeyExistsAndJsonContextIsSet_ItShouldReadDecryptAndDeserializeTheValue()
+  {
+    var key = "Database";
+    var expectedConfig = new DummyConfig("localhost", 9999);
+    var encryptedString = "encryptedString";
+    var json = JsonSerializer.Serialize(expectedConfig);
+
+    _jsonSerializerOptions.TypeInfoResolverChain.Insert(0, SecureConfigTestsJsonContext.Default);
+    _mockStorageProvider.Setup(m => m.ReadAsync(key, It.IsAny<CancellationToken>())).ReturnsAsync(encryptedString);
+    _mockCryptoProvider.Setup(m => m.Decrypt(encryptedString)).Returns(json);
+
+    var result = await _sut.GetAsync(key, SecureConfigTestsJsonContext.Default.DummyConfig);
+
+    result.Should().BeEquivalentTo(expectedConfig);
   }
 
   [Fact]
@@ -83,10 +158,10 @@ public class SecureConfigTests
     var encryptedString = "encryptedString";
     var json = JsonSerializer.Serialize(expectedConfig);
 
-    _mockStorageProvider.Setup(m => m.ReadAsync(key)).ReturnsAsync(encryptedString);
+    _mockStorageProvider.Setup(m => m.ReadAsync(key, It.IsAny<CancellationToken>())).ReturnsAsync(encryptedString);
     _mockCryptoProvider.Setup(m => m.Decrypt(encryptedString)).Returns(json);
 
-    var result = await _sut.GetAsync<DummyConfig>(key);
+    var result = await _sut.GetAsync(key, SecureConfigTestsJsonContext.Default.DummyConfig);
 
     result.Should().BeEquivalentTo(expectedConfig);
   }
@@ -98,9 +173,9 @@ public class SecureConfigTests
     var expectedConfig = new DummyConfig("localhost", 9999);
     var json = JsonSerializer.Serialize(expectedConfig);
 
-    _mockStorageProvider.Setup(m => m.ReadAsync(key)).ReturnsAsync(string.Empty);
+    _mockStorageProvider.Setup(m => m.ReadAsync(key, It.IsAny<CancellationToken>())).ReturnsAsync(string.Empty);
 
-    var result = await _sut.GetAsync<DummyConfig>(key);
+    var result = await _sut.GetAsync(key, SecureConfigTestsJsonContext.Default.DummyConfig);
 
     result.Should().BeNull();
   }
@@ -110,13 +185,19 @@ public class SecureConfigTests
   {
     var key = "Database";
 
-    _mockStorageProvider.Setup(m => m.DeleteAsync(key)).ReturnsAsync(true);
+    _mockStorageProvider.Setup(m => m.DeleteAsync(key, It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
     var result = await _sut.DeleteAsync(key);
 
     result.Should().BeTrue();
-    _mockStorageProvider.Verify(m => m.DeleteAsync(key), Times.Once());
+    _mockStorageProvider.Verify(m => m.DeleteAsync(key, It.IsAny<CancellationToken>()), Times.Once());
   }
+}
 
-  private sealed record DummyConfig(string Host, int Port);
+internal sealed record DummyConfig(string Host, int Port);
+
+[JsonSerializable(typeof(string))]
+[JsonSerializable(typeof(DummyConfig))]
+internal partial class SecureConfigTestsJsonContext : JsonSerializerContext
+{
 }
