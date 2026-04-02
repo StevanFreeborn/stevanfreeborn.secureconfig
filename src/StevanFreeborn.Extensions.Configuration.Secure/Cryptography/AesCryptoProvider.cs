@@ -28,7 +28,12 @@ internal sealed class AesCryptoProvider(IEncryptionKeyProvider keyProvider) : IC
 
     var cipherBytes = new byte[plainBytes.Length];
 
+#if NETSTANDARD2_1
     using var aesGcm = new AesGcm(key);
+#else
+    using var aesGcm = new AesGcm(key, TagSize);
+#endif
+
     aesGcm.Encrypt(nonce, plainBytes, cipherBytes, tag);
 
     var combinedBytes = new byte[NonceSize + TagSize + plainBytes.Length];
@@ -51,7 +56,7 @@ internal sealed class AesCryptoProvider(IEncryptionKeyProvider keyProvider) : IC
 
     if (combinedBytes.Length < NonceSize + TagSize)
     {
-      throw new CryptographicException($"Invalid playload. {nameof(cipherText)} is not of expected length");
+      throw new CryptographicException($"Invalid payload. {nameof(cipherText)} is not of expected length");
     }
 
     var nonce = combinedBytes[..NonceSize];
@@ -59,7 +64,12 @@ internal sealed class AesCryptoProvider(IEncryptionKeyProvider keyProvider) : IC
     var cipherBytes = combinedBytes[(NonceSize + TagSize)..];
     var plainBytes = new byte[cipherBytes.Length];
 
+#if NETSTANDARD2_1
     using var aesGcm = new AesGcm(key);
+#else
+    using var aesGcm = new AesGcm(key, TagSize);
+#endif
+
     aesGcm.Decrypt(nonce, cipherBytes, tag, plainBytes);
 
     return Encoding.UTF8.GetString(plainBytes);
