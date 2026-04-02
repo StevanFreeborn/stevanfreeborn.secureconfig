@@ -9,7 +9,7 @@ public class StaticKeyProviderTests
   {
     var act = () => new StaticKeyProvider(null!);
 
-    act.Should().Throw<ArgumentNullException>();
+    act.Should().Throw<ArgumentException>();
   }
 
   [Fact]
