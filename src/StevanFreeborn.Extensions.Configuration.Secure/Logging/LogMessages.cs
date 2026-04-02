@@ -18,7 +18,7 @@ internal static partial class LogMessages
 
   [LoggerMessage(
       EventId = 3,
-      Level = LogLevel.Error,
+      Level = LogLevel.Warning,
       Message = "Failed to decrypt value for key {Key}"
   )]
   public static partial void LogDecryptionFailure(this ILogger logger, Exception ex, string key);
