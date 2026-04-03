@@ -100,7 +100,7 @@ public static class SecureConfigExtensions
 
     var configBuilder = new SecureConfigBuilder();
 
-    configure(configBuilder);
+    configure.Invoke(configBuilder);
 
     if (configBuilder.StorageProvider is null)
     {
