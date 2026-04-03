@@ -91,12 +91,20 @@ internal sealed class SecureConfigBuilder : ISecureConfigBuilder
 
   public ISecureConfigBuilder WithAesCryptoProvider()
   {
-    CryptoProviderFactory = (kp) => new AesCryptoProvider(kp);
+    CryptoProviderFactory = keyProvider => new AesCryptoProvider(keyProvider);
     return this;
   }
 
   public ISecureConfigBuilder WithCustomCryptoProvider(Func<IEncryptionKeyProvider, ICryptoProvider> cryptoProviderFactory)
   {
+#if NET6_0_OR_GREATER
+    ArgumentNullException.ThrowIfNull(cryptoProviderFactory);
+#else
+    if (cryptoProviderFactory is null)
+    {
+      throw new ArgumentNullException(nameof(cryptoProviderFactory));
+    }
+#endif
     CryptoProviderFactory = cryptoProviderFactory;
     return this;
   }
