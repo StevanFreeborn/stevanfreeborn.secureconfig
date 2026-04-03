@@ -22,4 +22,11 @@ internal static partial class LogMessages
       Message = "Failed to decrypt value for key {Key}"
   )]
   public static partial void LogDecryptionFailure(this ILogger logger, Exception ex, string key);
+
+  [LoggerMessage(
+      EventId = 4,
+      Level = LogLevel.Warning,
+      Message = "Failed to asynchronously reload secure configuration. The previous configuration state will be maintained."
+  )]
+  public static partial void LogFailedToReloadSecureConfig(this ILogger logger, Exception ex);
 }
