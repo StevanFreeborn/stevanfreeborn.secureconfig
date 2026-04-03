@@ -265,11 +265,12 @@ public class SecureConfigBuilderTests
   }
 
   [Fact]
-  public void WithCustomCryptoProvider_WithNullFactory_ItShouldSetNull()
+  public void WithCustomCryptoProvider_WithNullFactory_ItShouldThrowArgumentNullException()
   {
-    _sut.WithCustomCryptoProvider(null!);
+    var act = () => _sut.WithCustomCryptoProvider(null!);
 
-    _sut.CryptoProviderFactory.Should().BeNull();
+    act.Should().Throw<ArgumentNullException>()
+      .WithParameterName("cryptoProviderFactory");
   }
 
   [Fact]
