@@ -5,23 +5,15 @@ using Microsoft.Extensions.Primitives;
 
 namespace StevanFreeborn.Extensions.Configuration.Secure.Storage;
 
-/// <summary>
-/// Provides a mechanism to store and retrieve secure configuration data in a JSON file.
-/// </summary>
-public sealed class JsonFileStorageProvider : ISecureStorageProvider
+internal sealed class JsonFileStorageProvider : ISecureStorageProvider
 {
   private static readonly SemaphoreSlim FileLock = new(1, 1);
   private readonly PhysicalFileProvider? _fileProvider;
   private readonly IDisposable? _changeTokenRegistration;
   private readonly JsonStorageOptions _options;
 
-  /// <inheritdoc/>
   public event EventHandler? StorageChanged;
 
-  /// <summary>
-  /// Provides a mechanism to store and retrieve secure configuration data in a JSON file.
-  /// </summary>
-  /// <param name="options">The <see cref="JsonStorageOptions"/> configuring the storage provider, including file paths.</param>
   public JsonFileStorageProvider(JsonStorageOptions options)
   {
     _options = options
@@ -48,12 +40,6 @@ public sealed class JsonFileStorageProvider : ISecureStorageProvider
     }
   }
 
-  /// <summary>
-  /// Reads the value associated with the specified key from the JSON file asynchronously.
-  /// </summary>
-  /// <param name="key">The key of the configuration value to read.</param>
-  /// <param name="ct">A cancellation token that can be used to cancel the read operation.</param>
-  /// <returns>A task that represents the asynchronous read operation. The task result contains the value associated with the specified key, or an empty string if the key is not found.</returns>
   public async Task<string> ReadAsync(string key, CancellationToken ct = default)
   {
     var data = await AcquireLockAndLoadAsync(ct).ConfigureAwait(false);
@@ -66,23 +52,11 @@ public sealed class JsonFileStorageProvider : ISecureStorageProvider
     return string.Empty;
   }
 
-  /// <summary>
-  /// Reads all configuration values from the JSON file asynchronously.
-  /// </summary>
-  /// <param name="ct">A cancellation token that can be used to cancel the read operation.</param>
-  /// <returns>A task that represents the asynchronous read operation. The task result contains a dictionary of all configuration keys and their values.</returns>
   public Task<IDictionary<string, string>> ReadAllAsync(CancellationToken ct = default)
   {
     return AcquireLockAndLoadAsync(ct);
   }
 
-  /// <summary>
-  /// Writes the specified key and encrypted data to the JSON file asynchronously.
-  /// </summary>
-  /// <param name="key">The key of the configuration value to write.</param>
-  /// <param name="encryptedData">The encrypted configuration data to write.</param>
-  /// <param name="ct">A cancellation token that can be used to cancel the write operation.</param>
-  /// <returns>A task that represents the asynchronous write operation.</returns>
   public async Task WriteAsync(string key, string encryptedData, CancellationToken ct = default)
   {
     await FileLock.WaitAsync(ct).ConfigureAwait(false);
@@ -99,12 +73,6 @@ public sealed class JsonFileStorageProvider : ISecureStorageProvider
     }
   }
 
-  /// <summary>
-  /// Deletes the configuration value associated with the specified key from the JSON file asynchronously.
-  /// </summary>
-  /// <param name="key">The key of the configuration value to delete.</param>
-  /// <param name="ct">A cancellation token that can be used to cancel the delete operation.</param>
-  /// <returns>A task that represents the asynchronous delete operation. The task result contains <c>true</c> if the value was successfully deleted; otherwise, <c>false</c>.</returns>
   public async Task<bool> DeleteAsync(string key, CancellationToken ct = default)
   {
     await FileLock.WaitAsync(ct).ConfigureAwait(false);
@@ -122,9 +90,6 @@ public sealed class JsonFileStorageProvider : ISecureStorageProvider
     }
   }
 
-  /// <summary>
-  ///
-  /// </summary>
   public void Dispose()
   {
     _changeTokenRegistration?.Dispose();
