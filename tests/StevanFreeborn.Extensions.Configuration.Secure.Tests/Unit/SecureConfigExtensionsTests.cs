@@ -11,6 +11,7 @@ using Moq;
 using StevanFreeborn.Extensions.Configuration.Secure.Configuration;
 using StevanFreeborn.Extensions.Configuration.Secure.Cryptography;
 using StevanFreeborn.Extensions.Configuration.Secure.Storage;
+using StevanFreeborn.Extensions.Configuration.Secure.Tests.Common;
 
 namespace StevanFreeborn.Extensions.Configuration.Secure.Tests.Unit;
 
@@ -50,7 +51,7 @@ public class SecureConfigExtensionsTests
 
     var act = () => builder.AddSecureConfig(config =>
     {
-      config.WithBase64EncryptionKey(GetValidBase64Key());
+      config.WithBase64EncryptionKey(KeyGenerator.GetValidBase64Key());
       config.WithAesCryptoProvider();
     });
 
@@ -81,7 +82,7 @@ public class SecureConfigExtensionsTests
     var act = () => builder.AddSecureConfig(config =>
     {
       config.UseCustomStorage(_mockStorageProvider.Object);
-      config.WithBase64EncryptionKey(GetValidBase64Key());
+      config.WithBase64EncryptionKey(KeyGenerator.GetValidBase64Key());
     });
 
     act.Should().Throw<InvalidOperationException>()
@@ -96,7 +97,7 @@ public class SecureConfigExtensionsTests
     var result = builder.AddSecureConfig(config =>
     {
       config.UseCustomStorage(_mockStorageProvider.Object);
-      config.WithBase64EncryptionKey(GetValidBase64Key());
+      config.WithBase64EncryptionKey(KeyGenerator.GetValidBase64Key());
       config.WithAesCryptoProvider();
     });
 
@@ -134,51 +135,34 @@ public class SecureConfigExtensionsTests
   [Fact]
   public void AddSecureConfig_WithJsonFileStorage_ItShouldWorkEndToEnd()
   {
-    var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-    var filePath = Path.Combine(tempDir, "test_config.json");
+    using var tempDir = new TempDirectory();
+    var filePath = Path.Combine(tempDir.Path, "test_config.json");
 
-    try
-    {
-      Directory.CreateDirectory(tempDir);
+    var keyBytes = new byte[32];
+    RandomNumberGenerator.Fill(keyBytes);
+    var keyProvider = new StaticKeyProvider(Convert.ToBase64String(keyBytes));
+    var cryptoProvider = new AesCryptoProvider(keyProvider);
 
-      var keyBytes = new byte[32];
-      RandomNumberGenerator.Fill(keyBytes);
-      var keyProvider = new StaticKeyProvider(Convert.ToBase64String(keyBytes));
-      var cryptoProvider = new AesCryptoProvider(keyProvider);
+    var originalData = /*lang=json,strict*/ @"{ ""AppName"": ""TestApp"", ""Version"": ""1.0.0"" }";
+    var encryptedData = cryptoProvider.Encrypt(originalData);
 
-      var originalData = /*lang=json,strict*/ @"{ ""AppName"": ""TestApp"", ""Version"": ""1.0.0"" }";
-      var encryptedData = cryptoProvider.Encrypt(originalData);
+    File.WriteAllText(filePath, $"{{\"Settings\":\"{encryptedData}\"}}");
 
-      File.WriteAllText(filePath, $"{{\"Settings\":\"{encryptedData}\"}}");
-
-      var configuration = new ConfigurationBuilder()
-        .AddSecureConfig(config =>
+    var configuration = new ConfigurationBuilder()
+      .AddSecureConfig(config =>
+      {
+        config.UseJsonFileStorage(options =>
         {
-          config.UseJsonFileStorage(options =>
-          {
-            options.DirectoryPath = tempDir;
-            options.FileName = "test_config.json";
-          });
-          config.WithBase64EncryptionKey(Convert.ToBase64String(keyBytes));
-          config.WithAesCryptoProvider();
-        })
-        .Build();
+          options.DirectoryPath = tempDir.Path;
+          options.FileName = "test_config.json";
+        });
+        config.WithBase64EncryptionKey(Convert.ToBase64String(keyBytes));
+        config.WithAesCryptoProvider();
+      })
+      .Build();
 
-      configuration["Settings:AppName"].Should().Be("TestApp");
-      configuration["Settings:Version"].Should().Be("1.0.0");
-    }
-    finally
-    {
-      if (File.Exists(filePath))
-      {
-        File.Delete(filePath);
-      }
-
-      if (Directory.Exists(tempDir))
-      {
-        Directory.Delete(tempDir, true);
-      }
-    }
+    configuration["Settings:AppName"].Should().Be("TestApp");
+    configuration["Settings:Version"].Should().Be("1.0.0");
   }
 
   [Fact]
@@ -199,7 +183,7 @@ public class SecureConfigExtensionsTests
     builder.AddSecureConfig(config =>
     {
       config.UseCustomStorage(_mockStorageProvider.Object);
-      config.WithBase64EncryptionKey(GetValidBase64Key());
+      config.WithBase64EncryptionKey(KeyGenerator.GetValidBase64Key());
       config.WithAesCryptoProvider();
       config.WithLoggerFactory(_mockLoggerFactory.Object);
     })
@@ -219,14 +203,14 @@ public class SecureConfigExtensionsTests
     builder.AddSecureConfig(config =>
     {
       config.UseCustomStorage(_mockStorageProvider.Object);
-      config.WithBase64EncryptionKey(GetValidBase64Key());
+      config.WithBase64EncryptionKey(KeyGenerator.GetValidBase64Key());
       config.WithAesCryptoProvider();
     });
 
     builder.AddSecureConfig(config =>
     {
       config.UseCustomStorage(_mockStorageProvider.Object);
-      config.WithBase64EncryptionKey(GetValidBase64Key());
+      config.WithBase64EncryptionKey(KeyGenerator.GetValidBase64Key());
       config.WithAesCryptoProvider();
     });
 
@@ -263,7 +247,7 @@ public class SecureConfigExtensionsTests
 
     var act = () => services.AddSecureConfig(config =>
     {
-      config.WithBase64EncryptionKey(GetValidBase64Key());
+      config.WithBase64EncryptionKey(KeyGenerator.GetValidBase64Key());
       config.WithAesCryptoProvider();
     });
 
@@ -294,7 +278,7 @@ public class SecureConfigExtensionsTests
     var act = () => services.AddSecureConfig(config =>
     {
       config.UseCustomStorage(_mockStorageProvider.Object);
-      config.WithBase64EncryptionKey(GetValidBase64Key());
+      config.WithBase64EncryptionKey(KeyGenerator.GetValidBase64Key());
     });
 
     act.Should().Throw<InvalidOperationException>()
@@ -498,102 +482,73 @@ public class SecureConfigExtensionsTests
   [Fact]
   public async Task AddSecureConfig_ServiceCollection_WithRealAesCryptoProvider_ItShouldWorkEndToEnd()
   {
-    var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-    var filePath = Path.Combine(tempDir, "test_config.json");
+    using var tempDir = new TempDirectory();
+    var filePath = Path.Combine(tempDir.Path, "test_config.json");
 
-    try
+    var keyBytes = new byte[32];
+    RandomNumberGenerator.Fill(keyBytes);
+    var base64Key = Convert.ToBase64String(keyBytes);
+
+    var services = new ServiceCollection();
+
+    services.AddSecureConfig(config =>
     {
-      Directory.CreateDirectory(tempDir);
-
-      var keyBytes = new byte[32];
-      RandomNumberGenerator.Fill(keyBytes);
-      var base64Key = Convert.ToBase64String(keyBytes);
-
-      var services = new ServiceCollection();
-
-      services.AddSecureConfig(config =>
+      config.AddJsonAotContext(SecureConfigExtensionsTestsJsonContext.Default);
+      config.UseJsonFileStorage(options =>
       {
-        config.AddJsonAotContext(SecureConfigExtensionsTestsJsonContext.Default);
-        config.UseJsonFileStorage(options =>
-        {
-          options.DirectoryPath = tempDir;
-          options.FileName = "test_config.json";
-        });
-        config.WithBase64EncryptionKey(base64Key);
-        config.WithAesCryptoProvider();
+        options.DirectoryPath = tempDir.Path;
+        options.FileName = "test_config.json";
       });
+      config.WithBase64EncryptionKey(base64Key);
+      config.WithAesCryptoProvider();
+    });
 
-      var serviceProvider = services.BuildServiceProvider();
-      var secureConfig = serviceProvider.GetRequiredService<ISecureConfig>();
-      var storageProvider = serviceProvider.GetRequiredService<ISecureStorageProvider>();
+    var serviceProvider = services.BuildServiceProvider();
+    var secureConfig = serviceProvider.GetRequiredService<ISecureConfig>();
+    var storageProvider = serviceProvider.GetRequiredService<ISecureStorageProvider>();
 
-      var testObject = new TestConfig { Name = "TestName", Value = 123 };
-      await secureConfig.SetAsync("TestKey", testObject);
+    var testObject = new TestConfig { Name = "TestName", Value = 123 };
+    await secureConfig.SetAsync("TestKey", testObject);
 
-      var retrievedObject = await secureConfig.GetAsync<TestConfig>("TestKey");
+    var retrievedObject = await secureConfig.GetAsync<TestConfig>("TestKey");
 
-      retrievedObject.Should().NotBeNull();
-      retrievedObject.Name.Should().Be("TestName");
-      retrievedObject.Value.Should().Be(123);
+    retrievedObject.Should().NotBeNull();
+    retrievedObject.Name.Should().Be("TestName");
+    retrievedObject.Value.Should().Be(123);
 
-      File.Exists(filePath).Should().BeTrue();
-    }
-    finally
-    {
-      if (File.Exists(filePath))
-      {
-        File.Delete(filePath);
-      }
-
-      if (Directory.Exists(tempDir))
-      {
-        Directory.Delete(tempDir, true);
-      }
-    }
+    File.Exists(filePath).Should().BeTrue();
   }
 
   [Fact]
   public async Task AddSecureConfig_ServiceCollection_WithMachineIdKey_ItShouldWorkEndToEnd()
   {
-    var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+    using var tempDir = new TempDirectory();
 
-    try
+    var services = new ServiceCollection();
+
+    services.AddSecureConfig(config =>
     {
-      Directory.CreateDirectory(tempDir);
-
-      var services = new ServiceCollection();
-
-      services.AddSecureConfig(config =>
+      config.AddJsonAotContext(SecureConfigExtensionsTestsJsonContext.Default);
+      config.UseJsonFileStorage(options =>
       {
-        config.AddJsonAotContext(SecureConfigExtensionsTestsJsonContext.Default);
-        config.UseJsonFileStorage(options =>
-        {
-          options.DirectoryPath = tempDir;
-          options.FileName = "test_config.json";
-        });
-        config.WithMachineIdKey();
-        config.WithAesCryptoProvider();
+        options.DirectoryPath = tempDir.Path;
+        options.FileName = "test_config.json";
       });
+      config.WithMachineIdKey();
+      config.WithAesCryptoProvider();
+    });
 
-      var serviceProvider = services.BuildServiceProvider();
-      var secureConfig = serviceProvider.GetRequiredService<ISecureConfig>();
+    var serviceProvider = services.BuildServiceProvider();
+    var secureConfig = serviceProvider.GetRequiredService<ISecureConfig>();
 
-      var testObject = new TestConfig { Name = "MachineIdTest", Value = 456 };
-      await secureConfig.SetAsync("MachineTest", testObject);
+    var testObject = new TestConfig { Name = "MachineIdTest", Value = 456 };
+    await secureConfig.SetAsync("MachineTest", testObject);
 
-      var retrievedObject = await secureConfig.GetAsync<TestConfig>("MachineTest");
+    var retrievedObject = await secureConfig.GetAsync<TestConfig>("MachineTest");
 
-      retrievedObject.Should().NotBeNull();
-      retrievedObject.Name.Should().Be("MachineIdTest");
-      retrievedObject.Value.Should().Be(456);
-    }
-    finally
-    {
-      if (Directory.Exists(tempDir))
-      {
-        Directory.Delete(tempDir, true);
-      }
-    }
+    retrievedObject.Should().NotBeNull();
+    retrievedObject.Name.Should().Be("MachineIdTest");
+    retrievedObject.Value.Should().Be(456);
   }
 
   [Fact]
@@ -743,13 +698,6 @@ public class SecureConfigExtensionsTests
 
     configuration["Section1:Setting1"].Should().Be("Value1");
     configuration["Section2:Setting2"].Should().Be("Value2");
-  }
-
-  private static string GetValidBase64Key()
-  {
-    var keyBytes = new byte[32];
-    RandomNumberGenerator.Fill(keyBytes);
-    return Convert.ToBase64String(keyBytes);
   }
 }
 

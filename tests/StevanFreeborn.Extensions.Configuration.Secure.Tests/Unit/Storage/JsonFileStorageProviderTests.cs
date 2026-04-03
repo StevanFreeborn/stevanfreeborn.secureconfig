@@ -1,22 +1,20 @@
 using StevanFreeborn.Extensions.Configuration.Secure.Storage;
+using StevanFreeborn.Extensions.Configuration.Secure.Tests.Common;
 
 namespace StevanFreeborn.Extensions.Configuration.Secure.Tests.Unit.Storage;
 
 public class JsonFileStorageProviderTests : IDisposable
 {
-  private readonly string _tmpDirectory;
+  private readonly TempDirectory _tempDir = new();
   private readonly JsonStorageOptions _options;
   private readonly JsonFileStorageProvider _sut;
 
   public JsonFileStorageProviderTests()
   {
-    _tmpDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-    Directory.CreateDirectory(_tmpDirectory);
-
     _options = new()
     {
       FileName = "testsettings.json",
-      DirectoryPath = _tmpDirectory,
+      DirectoryPath = _tempDir.Path,
     };
 
     _sut = new(_options);
@@ -72,11 +70,7 @@ public class JsonFileStorageProviderTests : IDisposable
 
   public void Dispose()
   {
-    if (Directory.Exists(_tmpDirectory))
-    {
-      Directory.Delete(_tmpDirectory, true);
-    }
-
+    _tempDir.Dispose();
     GC.SuppressFinalize(this);
   }
 
