@@ -7,7 +7,7 @@ namespace StevanFreeborn.Extensions.Configuration.Secure.Storage;
 
 internal sealed class JsonFileStorageProvider : ISecureStorageProvider
 {
-  private static readonly SemaphoreSlim FileLock = new(1, 1);
+  private readonly SemaphoreSlim _fileLock = new(1, 1);
   private readonly PhysicalFileProvider? _fileProvider;
   private readonly IDisposable? _changeTokenRegistration;
   private readonly JsonStorageOptions _options;
@@ -31,11 +31,7 @@ internal sealed class JsonFileStorageProvider : ISecureStorageProvider
 
       _changeTokenRegistration = ChangeToken.OnChange(
         () => _fileProvider.Watch(_options.FileName),
-        () =>
-        {
-          Thread.Sleep(250);
-          StorageChanged?.Invoke(this, EventArgs.Empty);
-        }
+        () => _ = NotifyStorageChangedAsync()
       );
     }
   }
@@ -59,7 +55,7 @@ internal sealed class JsonFileStorageProvider : ISecureStorageProvider
 
   public async Task WriteAsync(string key, string encryptedData, CancellationToken ct = default)
   {
-    await FileLock.WaitAsync(ct).ConfigureAwait(false);
+    await _fileLock.WaitAsync(ct).ConfigureAwait(false);
 
     try
     {
@@ -69,13 +65,13 @@ internal sealed class JsonFileStorageProvider : ISecureStorageProvider
     }
     finally
     {
-      FileLock.Release();
+      _fileLock.Release();
     }
   }
 
   public async Task<bool> DeleteAsync(string key, CancellationToken ct = default)
   {
-    await FileLock.WaitAsync(ct).ConfigureAwait(false);
+    await _fileLock.WaitAsync(ct).ConfigureAwait(false);
 
     try
     {
@@ -86,7 +82,7 @@ internal sealed class JsonFileStorageProvider : ISecureStorageProvider
     }
     finally
     {
-      FileLock.Release();
+      _fileLock.Release();
     }
   }
 
@@ -94,11 +90,12 @@ internal sealed class JsonFileStorageProvider : ISecureStorageProvider
   {
     _changeTokenRegistration?.Dispose();
     _fileProvider?.Dispose();
+    _fileLock.Dispose();
   }
 
   private async Task<IDictionary<string, string>> AcquireLockAndLoadAsync(CancellationToken ct)
   {
-    await FileLock.WaitAsync(ct).ConfigureAwait(false);
+    await _fileLock.WaitAsync(ct).ConfigureAwait(false);
 
     try
     {
@@ -106,8 +103,14 @@ internal sealed class JsonFileStorageProvider : ISecureStorageProvider
     }
     finally
     {
-      FileLock.Release();
+      _fileLock.Release();
     }
+  }
+
+  private async Task NotifyStorageChangedAsync()
+  {
+    await Task.Delay(250).ConfigureAwait(false);
+    StorageChanged?.Invoke(this, EventArgs.Empty);
   }
 
   private async Task<Dictionary<string, string>> LoadAsync(CancellationToken ct)
