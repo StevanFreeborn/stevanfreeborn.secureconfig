@@ -23,14 +23,16 @@ internal class SecureConfigProvider : ConfigurationProvider, IDisposable
   {
     _storageProvider = storageProvider ?? throw new ArgumentNullException(nameof(storageProvider));
     _cryptoProvider = cryptoProvider ?? throw new ArgumentNullException(nameof(cryptoProvider));
-    _logger = logger ?? throw new ArgumentNullException(nameof(cryptoProvider));
+    _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     _storageProvider.StorageChanged += HandleStorageChangedAsync;
   }
 
   public override void Load()
   {
+#pragma warning disable CA1849 // Call async methods when in an async method
     var encryptedData = _storageProvider.ReadAllAsync().GetAwaiter().GetResult();
+#pragma warning restore CA1849 // Call async methods when in an async method
     Data = ProcessAndDecryptData(encryptedData);
   }
 
