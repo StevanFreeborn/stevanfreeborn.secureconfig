@@ -1,0 +1,95 @@
+using StevanFreeborn.Extensions.Configuration.Secure.Storage;
+using StevanFreeborn.Extensions.Configuration.Secure.Tests.Common;
+
+namespace StevanFreeborn.Extensions.Configuration.Secure.Tests.Unit.Storage;
+
+public class JsonFileStorageProviderTests : IDisposable
+{
+  private readonly TempDirectory _tempDir = new();
+  private readonly JsonStorageOptions _options;
+  private readonly JsonFileStorageProvider _sut;
+
+  public JsonFileStorageProviderTests()
+  {
+    _options = new()
+    {
+      FileName = "testsettings.json",
+      DirectoryPath = _tempDir.Path,
+    };
+
+    _sut = new(_options);
+  }
+
+  [Fact]
+  public void Constructor_WhenCalledWithNullOptions_ItShouldThrowArgumentNullException()
+  {
+    var act = static () => new JsonFileStorageProvider(null!);
+
+    act.Should().Throw<ArgumentNullException>();
+  }
+
+  [Fact]
+  public async Task WriteAsync_And_ReadAsync_WhenCalled_ItShouldBeAbleToPersistAndRetrieveValues()
+  {
+    var configKey = "KeyA";
+    var configValue = "Value";
+
+    await _sut.WriteAsync(configKey, configValue);
+    var result = await _sut.ReadAsync(configKey);
+
+    result.Should().Be(configValue);
+    File.Exists(_options.FullPath).Should().BeTrue();
+  }
+
+  [Fact]
+  public async Task ReadAllAsync_WhenCalled_ItShouldReturnAllStoredKeys()
+  {
+    await _sut.WriteAsync("Key1", "Val1");
+    await _sut.WriteAsync("Key2", "Val2");
+
+    var allData = await _sut.ReadAllAsync();
+
+    allData.Should().BeEquivalentTo(new Dictionary<string, string>()
+    {
+      ["Key1"] = "Val1",
+      ["Key2"] = "Val2",
+    });
+  }
+
+  [Fact]
+  public async Task DeleteAsync_WhenCalled_ItShouldRemoveKey()
+  {
+    await _sut.WriteAsync("KeyToDelete", "SomeValue");
+
+    var deleteResult = await _sut.DeleteAsync("KeyToDelete");
+    var readResult = await _sut.ReadAsync("KeyToDelete");
+
+    deleteResult.Should().BeTrue();
+    readResult.Should().BeEmpty();
+  }
+
+  public void Dispose()
+  {
+    _tempDir.Dispose();
+    GC.SuppressFinalize(this);
+  }
+
+  [Fact]
+  public async Task WriteAsync_WhenCalledConcurrently_ItShouldNotThrowFileInUseException()
+  {
+    const int numberOfWrites = 50;
+    var tasks = new List<Task>();
+
+    foreach (var index in Enumerable.Range(0, numberOfWrites))
+    {
+      tasks.Add(Task.Run(() => _sut.WriteAsync($"Key{index}", $"Val{index}")));
+    }
+
+    var act = async () => await Task.WhenAll(tasks);
+
+    await act.Should().NotThrowAsync();
+
+    var allData = await _sut.ReadAllAsync();
+    allData.Should().HaveCount(numberOfWrites);
+  }
+}

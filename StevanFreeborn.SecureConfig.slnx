@@ -1,2 +1,9 @@
 <Solution>
+  <Folder Name="/src/">
+    <Project Path="src/StevanFreeborn.Extensions.Configuration.Secure.Sample/StevanFreeborn.Extensions.Configuration.Secure.Sample.csproj" />
+    <Project Path="src/StevanFreeborn.Extensions.Configuration.Secure/StevanFreeborn.Extensions.Configuration.Secure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/StevanFreeborn.Extensions.Configuration.Secure.Tests/StevanFreeborn.Extensions.Configuration.Secure.Tests.csproj" />
+  </Folder>
 </Solution>
