@@ -10,12 +10,12 @@ internal sealed class MachineIdKeyProvider(IMachineIdKeyGenerator generator) : I
   public byte[] GetKey()
   {
     var machineId = _generator.GetId();
-    var @bytes = Encoding.UTF8.GetBytes(machineId);
+    var bytes = Encoding.UTF8.GetBytes(machineId);
 #if NET5_0_OR_GREATER
-    return SHA256.HashData(@bytes);
+    return SHA256.HashData(bytes);
 #else
     using var sha256 = SHA256.Create();
-    return sha256.ComputeHash(@bytes);
+    return sha256.ComputeHash(bytes);
 #endif
   }
 }
