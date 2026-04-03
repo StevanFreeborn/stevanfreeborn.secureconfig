@@ -12,6 +12,7 @@ using StevanFreeborn.Extensions.Configuration.Secure.Cryptography;
 using StevanFreeborn.Extensions.Configuration.Secure.Storage;
 
 namespace StevanFreeborn.Extensions.Configuration.Secure.Tests.Unit.Configuration;
+
 public class SecureConfigBuilderTests
 {
   private readonly SecureConfigBuilder _sut = new();
@@ -157,7 +158,7 @@ public class SecureConfigBuilderTests
   {
     var keyBytes = new byte[32];
     RandomNumberGenerator.Fill(keyBytes);
-    
+
     var validKey = Convert.ToBase64String(keyBytes);
 
     _sut.WithBase64EncryptionKey(validKey);
