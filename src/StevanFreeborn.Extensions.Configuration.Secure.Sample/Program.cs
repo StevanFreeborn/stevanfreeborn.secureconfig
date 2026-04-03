@@ -44,10 +44,7 @@ Console.WriteLine($"IOptions: {options.Value}");
 Console.WriteLine($"IOptionsSnapshot 1: {firstSnapshot.Value}");
 Console.WriteLine($"IOptionsMonitor: {optionsMonitor.CurrentValue}");
 
-await secureConfig.SetAsync(
-  nameof(ApiOptions),
-  new ApiOptions { ApiKey = Guid.NewGuid().ToString() }
-);
+await secureConfig.SetAsync(nameof(ApiOptions), new ApiOptions { ApiKey = Guid.NewGuid().ToString() });
 
 var config = (IConfigurationRoot)app.Services.GetRequiredService<IConfiguration>();
 config.Reload();
