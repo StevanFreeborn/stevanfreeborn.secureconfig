@@ -1,16 +1,52 @@
 using System.Text.Json;
 
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Primitives;
+
 namespace StevanFreeborn.Extensions.Configuration.Secure.Storage;
 
 /// <summary>
 /// Provides a mechanism to store and retrieve secure configuration data in a JSON file.
 /// </summary>
-/// <param name="options">The <see cref="JsonStorageOptions"/> configuring the storage provider, including file paths.</param>
-public sealed class JsonFileStorageProvider(JsonStorageOptions options) : ISecureStorageProvider
+public sealed class JsonFileStorageProvider : ISecureStorageProvider
 {
   private static readonly SemaphoreSlim FileLock = new(1, 1);
-  private readonly JsonStorageOptions _options = options
-    ?? throw new ArgumentNullException(nameof(options));
+  private readonly PhysicalFileProvider? _fileProvider;
+  private readonly IDisposable? _changeTokenRegistration;
+  private readonly JsonStorageOptions _options;
+
+  /// <inheritdoc/>
+  public event EventHandler? StorageChanged;
+
+  /// <summary>
+  /// Provides a mechanism to store and retrieve secure configuration data in a JSON file.
+  /// </summary>
+  /// <param name="options">The <see cref="JsonStorageOptions"/> configuring the storage provider, including file paths.</param>
+  public JsonFileStorageProvider(JsonStorageOptions options)
+  {
+    _options = options
+      ?? throw new ArgumentNullException(nameof(options));
+
+    var directory = Path.GetDirectoryName(_options.FullPath);
+
+    if (string.IsNullOrWhiteSpace(directory) is false && Directory.Exists(directory))
+    {
+      _fileProvider = new PhysicalFileProvider(directory)
+      {
+        UseActivePolling = true,
+        UsePollingFileWatcher = true,
+      };
+
+      _changeTokenRegistration = ChangeToken.OnChange(
+        () => _fileProvider.Watch(_options.FileName),
+        () =>
+        {
+          Thread.Sleep(250);
+          StorageChanged?.Invoke(this, EventArgs.Empty);
+        }
+      );
+    }
+  }
 
   /// <summary>
   /// Reads the value associated with the specified key from the JSON file asynchronously.
@@ -87,10 +123,14 @@ public sealed class JsonFileStorageProvider(JsonStorageOptions options) : ISecur
   }
 
   /// <summary>
-  /// Acquires an exclusive lock and loads the configuration data from the JSON file.
+  ///
   /// </summary>
-  /// <param name="ct">A cancellation token to observe while waiting for the lock or during the load operation.</param>
-  /// <returns>A dictionary containing the loaded configuration data.</returns>
+  public void Dispose()
+  {
+    _changeTokenRegistration?.Dispose();
+    _fileProvider?.Dispose();
+  }
+
   private async Task<IDictionary<string, string>> AcquireLockAndLoadAsync(CancellationToken ct)
   {
     await FileLock.WaitAsync(ct).ConfigureAwait(false);
@@ -105,11 +145,6 @@ public sealed class JsonFileStorageProvider(JsonStorageOptions options) : ISecur
     }
   }
 
-  /// <summary>
-  /// Loads the configuration data from the JSON file.
-  /// </summary>
-  /// <param name="ct">A cancellation token to observe while loading the data.</param>
-  /// <returns>A dictionary containing the loaded configuration data, or an empty dictionary if the file does not exist or is empty.</returns>
   private async Task<Dictionary<string, string>> LoadAsync(CancellationToken ct)
   {
     if (File.Exists(_options.FullPath) is false)
@@ -117,7 +152,16 @@ public sealed class JsonFileStorageProvider(JsonStorageOptions options) : ISecur
       return [];
     }
 
-    using var stream = new FileStream(_options.FullPath, FileMode.Open, FileAccess.Read);
+    var stream = new FileStream(
+      _options.FullPath,
+      FileMode.Open,
+      FileAccess.Read,
+      FileShare.ReadWrite,
+      bufferSize: 4096,
+      FileOptions.Asynchronous | FileOptions.SequentialScan
+    );
+
+    await using var _ = stream.ConfigureAwait(false);
 
     if (stream.Length is 0)
     {
@@ -130,22 +174,20 @@ public sealed class JsonFileStorageProvider(JsonStorageOptions options) : ISecur
     return data ?? [];
   }
 
-  /// <summary>
-  /// Saves the configuration data to the JSON file.
-  /// </summary>
-  /// <param name="data">The configuration data to save.</param>
-  /// <param name="ct">A cancellation token to observe while saving the data.</param>
-  /// <returns>A task that represents the asynchronous save operation.</returns>
   private async Task SaveAsync(Dictionary<string, string> data, CancellationToken ct)
   {
     Directory.CreateDirectory(_options.DirectoryPath);
 
-    using var stream = new FileStream(
+    var stream = new FileStream(
       _options.FullPath,
       FileMode.Create,
       FileAccess.Write,
-      FileShare.None
+      FileShare.None,
+      bufferSize: 4096,
+      FileOptions.Asynchronous
     );
+
+    await using var _ = stream.ConfigureAwait(false);
 
     await JsonSerializer.SerializeAsync(stream, data, SecureConfigJsonContext.Default.DictionaryStringString, ct)
       .ConfigureAwait(false);

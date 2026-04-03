@@ -3,8 +3,13 @@ namespace StevanFreeborn.Extensions.Configuration.Secure.Storage;
 /// <summary>
 /// Defines a contract for a provider that stores and retrieves secure configuration data.
 /// </summary>
-public interface ISecureStorageProvider
+public interface ISecureStorageProvider : IDisposable
 {
+  /// <summary>
+  ///
+  /// </summary>
+  event EventHandler StorageChanged;
+
   /// <summary>
   /// Reads the value associated with the specified key asynchronously.
   /// </summary>
