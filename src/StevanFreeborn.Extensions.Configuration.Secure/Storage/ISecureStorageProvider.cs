@@ -6,7 +6,7 @@ namespace StevanFreeborn.Extensions.Configuration.Secure.Storage;
 public interface ISecureStorageProvider : IDisposable
 {
   /// <summary>
-  ///
+  /// Occurs when the underlying storage has changed and the configuration should be reloaded.
   /// </summary>
   event EventHandler StorageChanged;
 
