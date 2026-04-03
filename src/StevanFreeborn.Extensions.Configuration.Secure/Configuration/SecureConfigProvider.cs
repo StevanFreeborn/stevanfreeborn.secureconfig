@@ -9,19 +9,58 @@ using StevanFreeborn.Extensions.Configuration.Secure.Storage;
 
 namespace StevanFreeborn.Extensions.Configuration.Secure.Configuration;
 
-internal class SecureConfigProvider(
-  ISecureStorageProvider storageProvider,
-  ICryptoProvider cryptoProvider,
-  ILogger<SecureConfigProvider> logger
-) : ConfigurationProvider
+internal class SecureConfigProvider : ConfigurationProvider, IDisposable
 {
-  private readonly ISecureStorageProvider _storageProvider = storageProvider ?? throw new ArgumentNullException(nameof(storageProvider));
-  private readonly ICryptoProvider _cryptoProvider = cryptoProvider ?? throw new ArgumentNullException(nameof(cryptoProvider));
-  private readonly ILogger<SecureConfigProvider> _logger = logger ?? throw new ArgumentNullException(nameof(cryptoProvider));
+  private readonly ISecureStorageProvider _storageProvider;
+  private readonly ICryptoProvider _cryptoProvider;
+  private readonly ILogger<SecureConfigProvider> _logger;
+
+  public SecureConfigProvider(
+    ISecureStorageProvider storageProvider,
+    ICryptoProvider cryptoProvider,
+    ILogger<SecureConfigProvider> logger
+  )
+  {
+    _storageProvider = storageProvider ?? throw new ArgumentNullException(nameof(storageProvider));
+    _cryptoProvider = cryptoProvider ?? throw new ArgumentNullException(nameof(cryptoProvider));
+    _logger = logger ?? throw new ArgumentNullException(nameof(cryptoProvider));
+
+    _storageProvider.StorageChanged += HandleStorageChangedAsync;
+  }
 
   public override void Load()
   {
     var encryptedData = _storageProvider.ReadAllAsync().GetAwaiter().GetResult();
+    Data = ProcessAndDecryptData(encryptedData);
+  }
+
+  public void Dispose()
+  {
+    _storageProvider.StorageChanged -= HandleStorageChangedAsync;
+  }
+
+  private async void HandleStorageChangedAsync(object? sender, EventArgs e)
+  {
+    try
+    {
+      var encryptedData = await _storageProvider.ReadAllAsync().ConfigureAwait(false);
+
+      var newData = ProcessAndDecryptData(encryptedData);
+
+      Data = newData;
+
+      OnReload();
+    }
+#pragma warning disable CA1031 // Do not catch general exception types
+    catch (Exception ex)
+#pragma warning restore CA1031 // Do not catch general exception types
+    {
+      _logger.LogFailedToReloadSecureConfig(ex);
+    }
+  }
+
+  private Dictionary<string, string?> ProcessAndDecryptData(IDictionary<string, string> encryptedData)
+  {
     var flattenedData = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
 
     foreach (var kvp in encryptedData)
@@ -29,7 +68,6 @@ internal class SecureConfigProvider(
       try
       {
         var decryptedJson = _cryptoProvider.Decrypt(kvp.Value);
-
         using var document = JsonDocument.Parse(decryptedJson);
         FlattenJsonElement(flattenedData, document.RootElement, kvp.Key);
       }
@@ -41,7 +79,7 @@ internal class SecureConfigProvider(
       }
     }
 
-    Data = flattenedData;
+    return flattenedData;
   }
 
   private static void FlattenJsonElement(IDictionary<string, string?> data, JsonElement element, string currentKey)
