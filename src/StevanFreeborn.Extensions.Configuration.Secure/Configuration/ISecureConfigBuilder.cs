@@ -53,7 +53,6 @@ public interface ISecureConfigBuilder
   /// <returns>The current <see cref="ISecureConfigBuilder"/> instance for method chaining.</returns>
   ISecureConfigBuilder WithMachineIdKey();
 
-
   /// <summary>
   /// Configures a custom encryption key provider.
   /// </summary>
@@ -69,7 +68,7 @@ public interface ISecureConfigBuilder
   ISecureConfigBuilder WithLoggerFactory(ILoggerFactory loggerFactory);
 
   /// <summary>
-  /// Configures AES crypto provider for encryption and decryption
+  /// Configures AES crypto provider for encryption and decryption.
   /// </summary>
   /// <returns>The current <see cref="ISecureConfigBuilder"/> instance for method chaining.</returns>
   ISecureConfigBuilder WithAesCryptoProvider();
@@ -77,7 +76,7 @@ public interface ISecureConfigBuilder
   /// <summary>
   /// Configures the factory function that will be used to create the crypto provider for encryption and decryption
   /// </summary>
-  /// <param name="cryptoProviderFactory">The crypto provider factor to use for encryption and decryption operations.</param>
+  /// <param name="cryptoProviderFactory">The crypto provider factory to use for encryption and decryption operations.</param>
   /// <returns>The current <see cref="ISecureConfigBuilder"/> instance for method chaining.</returns>
   ISecureConfigBuilder WithCustomCryptoProvider(Func<IEncryptionKeyProvider, ICryptoProvider> cryptoProviderFactory);
 }
