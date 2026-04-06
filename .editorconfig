@@ -90,6 +90,7 @@ dotnet_remove_unnecessary_suppression_exclusions = none
 #### C# Coding Conventions ####
 [*.cs]
 
+dotnet_diagnostic.IDE0053.severity = none
 dotnet_diagnostic.IDE0058.severity = none
 dotnet_diagnostic.IDE0100.severity = none
 
