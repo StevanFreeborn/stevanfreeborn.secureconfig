@@ -24,8 +24,7 @@ public class SecureConfigSourceTests
       loggerFactory: _mockLoggerFactory.Object
     );
 
-    act.Should().Throw<ArgumentNullException>()
-      .WithParameterName("storageProvider");
+    act.Should().Throw<ArgumentNullException>().WithParameterName("storageProvider");
   }
 
   [Fact]
@@ -37,8 +36,7 @@ public class SecureConfigSourceTests
       loggerFactory: _mockLoggerFactory.Object
     );
 
-    act.Should().Throw<ArgumentNullException>()
-      .WithParameterName("cryptoProvider");
+    act.Should().Throw<ArgumentNullException>().WithParameterName("cryptoProvider");
   }
 
   [Fact]
@@ -50,8 +48,7 @@ public class SecureConfigSourceTests
       loggerFactory: null!
     );
 
-    act.Should().Throw<ArgumentNullException>()
-      .WithParameterName("loggerFactory");
+    act.Should().Throw<ArgumentNullException>().WithParameterName("loggerFactory");
   }
 
   [Fact]
@@ -87,6 +84,7 @@ public class SecureConfigSourceTests
   public void Build_WhenCalled_ItShouldCreateLoggerFromFactory()
   {
     var mockLogger = new Mock<ILogger<SecureConfigProvider>>();
+
     _mockLoggerFactory
       .Setup(f => f.CreateLogger(typeof(SecureConfigProvider).FullName!))
       .Returns(mockLogger.Object);
