@@ -84,8 +84,7 @@ public class SecureConfigBuilderTests
   {
     var act = () => _sut.UseJsonFileStorage((Action<JsonStorageOptions>)null!);
 
-    act.Should().Throw<ArgumentNullException>()
-      .WithParameterName("configure");
+    act.Should().Throw<ArgumentNullException>().WithParameterName("configure");
   }
 
   [Fact]
@@ -104,8 +103,7 @@ public class SecureConfigBuilderTests
   {
     var act = () => _sut.AddJsonAotContext(null!);
 
-    act.Should().Throw<ArgumentNullException>()
-      .WithParameterName("context");
+    act.Should().Throw<ArgumentNullException>().WithParameterName("context");
   }
 
   [Fact]

@@ -1,7 +1,7 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net10.0;</TargetFrameworks>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
@@ -31,7 +31,7 @@
     <CollectCoverage>true</CollectCoverage>
     <CoverletOutput>./TestResults/Coverage/</CoverletOutput>
     <CoverletOutputFormat>cobertura</CoverletOutputFormat>
-    <Include>[StevanFreeborn.Extensions.Configuration.Secure]*</Include>
+    <Include>[*]StevanFreeborn.Extensions.Configuration.Secure.Cli*</Include>
     <ExcludeByFile>**/Program.cs</ExcludeByFile>
   </PropertyGroup>
 
@@ -45,7 +45,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\StevanFreeborn.Extensions.Configuration.Secure\StevanFreeborn.Extensions.Configuration.Secure.csproj" />
+    <ProjectReference
+      Include="..\..\src\StevanFreeborn.Extensions.Configuration.Secure.Cli\StevanFreeborn.Extensions.Configuration.Secure.Cli.csproj" />
   </ItemGroup>
 
 </Project>
